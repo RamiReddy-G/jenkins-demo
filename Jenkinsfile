@@ -3,6 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "reddy1753421/jenkins-demo-app"
+        IMAGE_TAG  = "${BUILD_NUMBER}"
     }
 
     stages {
@@ -14,7 +15,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                bat "docker build -t %IMAGE_NAME%:latest ."
+                bat "docker build -t %IMAGE_NAME%:%IMAGE_TAG% ."
             }
         }
 
@@ -32,7 +33,14 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                bat "docker push %IMAGE_NAME%:latest"
+                bat "docker push %IMAGE_NAME%:%IMAGE_TAG%"
+            }
+        }
+        stage('Push Docker Image') {
+            steps {
+                retry(3) {
+                    bat "docker push %IMAGE_NAME%:%IMAGE_TAG%"
+                }
             }
         }
     }
