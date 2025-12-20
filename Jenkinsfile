@@ -33,13 +33,10 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                bat "docker push %IMAGE_NAME%:%IMAGE_TAG%"
-            }
-        }
-        stage('Push Docker Image') {
-            steps {
                 retry(3) {
                     bat "docker push %IMAGE_NAME%:%IMAGE_TAG%"
+                    bat "docker tag %IMAGE_NAME%:%IMAGE_TAG% %IMAGE_NAME%:latest"
+                    bat "docker push %IMAGE_NAME%:latest"
                 }
             }
         }
@@ -47,7 +44,7 @@ pipeline {
 
     post {
         success {
-            echo 'Docker image built and pushed successfully'
+            echo "Docker image %IMAGE_NAME%:%IMAGE_TAG% pushed successfully"
         }
     }
 }
