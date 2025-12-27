@@ -45,16 +45,17 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ec2-ssh-key',
-                    keyFileVariable: 'SSH_KEY'
+                withCredentials([string(
+                    credentialsId: 'ec2-ssh-key-text',
+                    variable: 'SSH_KEY_TEXT'
                 )]) {
+
                     bat """
-                    ssh -i %SSH_KEY% -o StrictHostKeyChecking=no jenkins@%EC2_HOST% ^
-                    "docker stop backend-app || true && ^
-                     docker rm backend-app || true && ^
-                     docker pull %IMAGE_NAME%:latest && ^
-                     docker run -d -p 3000:3000 --name backend-app %IMAGE_NAME%:latest"
+                    echo %SSH_KEY_TEXT% > ec2_key.pem
+                    icacls ec2_key.pem /inheritance:r
+                    icacls ec2_key.pem /grant:r "%USERNAME%:R"
+
+                    ssh -i ec2_key.pem -o StrictHostKeyChecking=no jenkins@%EC2_HOST% "docker stop backend-app || true && docker rm backend-app || true && docker pull %IMAGE_NAME%:latest && docker run -d -p 3000:3000 --name backend-app %IMAGE_NAME%:latest"
                     """
                 }
             }
@@ -63,10 +64,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ CI/CD Pipeline completed successfully. App deployed to EC2."
+            echo "✅ Deployment successful. App is live on EC2."
         }
         failure {
-            echo "❌ Pipeline failed. Check logs."
+            echo "❌ Pipeline failed."
         }
     }
 }
