@@ -4,10 +4,11 @@ pipeline {
     environment {
         IMAGE_NAME = "reddy1753421/jenkins-demo-app"
         IMAGE_TAG  = "${BUILD_NUMBER}"
-        EC2_HOST   = "13.60.203.224"
+        EC2_HOST   = "<EC2_PUBLIC_IP>"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -44,14 +45,16 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh """
-                    ssh -o StrictHostKeyChecking=no jenkins@${EC2_HOST} '
-                      docker stop backend-app || true
-                      docker rm backend-app || true
-                      docker pull ${IMAGE_NAME}:latest
-                      docker run -d -p 3000:3000 --name backend-app ${IMAGE_NAME}:latest
-                    '
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'ec2-ssh-key',
+                    keyFileVariable: 'SSH_KEY'
+                )]) {
+                    bat """
+                    ssh -i %SSH_KEY% -o StrictHostKeyChecking=no jenkins@%EC2_HOST% ^
+                    "docker stop backend-app || true && ^
+                     docker rm backend-app || true && ^
+                     docker pull %IMAGE_NAME%:latest && ^
+                     docker run -d -p 3000:3000 --name backend-app %IMAGE_NAME%:latest"
                     """
                 }
             }
@@ -60,7 +63,10 @@ pipeline {
 
     post {
         success {
-            echo "Deployment to EC2 completed successfully"
+            echo "✅ CI/CD Pipeline completed successfully. App deployed to EC2."
+        }
+        failure {
+            echo "❌ Pipeline failed. Check logs."
         }
     }
 }
