@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "reddy1753421/jenkins-demo-app"
         IMAGE_TAG  = "${BUILD_NUMBER}"
-        EC2_HOST   = "<EC2_PUBLIC_IP>"
+        EC2_HOST   = "13.60.203.224"
     }
 
     stages {
