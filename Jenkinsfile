@@ -9,11 +9,7 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/RamiReddy-G/jenkins-demo.git'
-            }
-        }
+        // ✅ DO NOT add another checkout stage
 
         stage('Build & Push Image') {
             steps {
@@ -34,8 +30,7 @@ pipeline {
                         returnStdout: true
                     )
 
-                    env.NEW_COLOR = upstream.contains("3000") ? "green" : "blue"
-                    env.NEW_PORT  = upstream.contains("3000") ? "3001" : "3000"
+                    env.NEW_PORT = upstream.contains("3000") ? "3001" : "3000"
                 }
             }
         }
@@ -43,10 +38,10 @@ pipeline {
         stage('Deploy to Inactive Color') {
             steps {
                 sh """
-                docker stop app-$NEW_COLOR || true
-                docker rm app-$NEW_COLOR || true
+                docker stop app-$NEW_PORT || true
+                docker rm app-$NEW_PORT || true
                 docker run -d \
-                  --name app-$NEW_COLOR \
+                  --name app-$NEW_PORT \
                   -p $NEW_PORT:3000 \
                   $IMAGE:latest
                 """
@@ -75,7 +70,7 @@ pipeline {
             echo "❌ Deployment failed — traffic NOT switched"
         }
         success {
-            echo "✅ Blue-Green deployment completed successfully"
+            echo "✅ Blue-Green deployment completed"
         }
     }
 }
