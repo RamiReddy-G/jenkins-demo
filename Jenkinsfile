@@ -66,10 +66,24 @@ pipeline {
 
         stage('Health Check') {
             steps {
-                sh '''
-                  sleep 10
-                  curl -f http://localhost:${INACTIVE_PORT}
-                '''
+                script {
+                    try {
+                        sh '''
+                          sleep 10
+                          curl -f http://localhost:${INACTIVE_PORT}
+                        '''
+                        echo "✅ Health check passed"
+                    } catch (err) {
+                        echo "❌ Health check failed — rolling back"
+
+                        sh '''
+                          docker stop app-${INACTIVE_COLOR} || true
+                          docker rm app-${INACTIVE_COLOR} || true
+                        '''
+
+                        error("Rollback completed. Deployment aborted.")
+                    }
+                }
             }
         }
 
@@ -88,10 +102,10 @@ pipeline {
 
     post {
         success {
-            echo "✅ Blue-Green deployment successful — zero downtime"
+            echo "✅ Deployment successful — zero downtime achieved"
         }
         failure {
-            echo "❌ Deployment failed — traffic NOT switched"
+            echo "❌ Deployment failed — automatic rollback executed"
         }
     }
 }
