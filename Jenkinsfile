@@ -7,7 +7,6 @@ pipeline {
 
     stages {
 
-        /* ---------------- CHECKOUT ---------------- */
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -15,7 +14,6 @@ pipeline {
             }
         }
 
-        /* ---------------- BUILD & PUSH ---------------- */
         stage('Build & Push Image') {
             steps {
                 sh '''
@@ -27,7 +25,6 @@ pipeline {
             }
         }
 
-        /* ---------------- DETECT ACTIVE COLOR ---------------- */
         stage('Detect Active Color') {
             steps {
                 script {
@@ -53,7 +50,6 @@ pipeline {
             }
         }
 
-        /* ---------------- DEPLOY TO INACTIVE ---------------- */
         stage('Deploy to Inactive Color') {
             steps {
                 sh '''
@@ -68,7 +64,6 @@ pipeline {
             }
         }
 
-        /* ---------------- HEALTH CHECK ---------------- */
         stage('Health Check') {
             steps {
                 sh '''
@@ -78,15 +73,14 @@ pipeline {
             }
         }
 
-        /* ---------------- SWITCH TRAFFIC ---------------- */
         stage('Switch Traffic') {
             steps {
                 sh '''
-                  sed -i "s/3000/3001/" /etc/nginx/conf.d/upstream.conf || true
-                  sed -i "s/3001/${INACTIVE_PORT}/" /etc/nginx/conf.d/upstream.conf
+                  sudo sed -i "s/3000/3001/" /etc/nginx/conf.d/upstream.conf || true
+                  sudo sed -i "s/3001/${INACTIVE_PORT}/" /etc/nginx/conf.d/upstream.conf
 
-                  nginx -t
-                  systemctl reload nginx
+                  sudo nginx -t
+                  sudo systemctl reload nginx
                 '''
             }
         }
