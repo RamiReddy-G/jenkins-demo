@@ -2,66 +2,80 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "reddy1753421/jenkins-demo-app"
-        CONTAINER_NAME = "backend-app"
+        IMAGE = "reddy1753421/jenkins-demo-app"
+        TAG   = "${BUILD_NUMBER}"
+        ACTIVE_COLOR_FILE = "/etc/nginx/conf.d/upstream.conf"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/RamiReddy-G/jenkins-demo.git'
+                git 'https://github.com/RamiReddy-G/jenkins-demo.git'
             }
         }
 
-        stage('Docker Login') {
+        stage('Build & Push Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
+                sh """
+                docker build -t $IMAGE:$TAG .
+                docker tag $IMAGE:$TAG $IMAGE:latest
+                docker push $IMAGE:$TAG
+                docker push $IMAGE:latest
+                """
+            }
+        }
+
+        stage('Detect Active Color') {
+            steps {
+                script {
+                    def upstream = sh(
+                        script: "grep server $ACTIVE_COLOR_FILE",
+                        returnStdout: true
+                    )
+
+                    env.NEW_COLOR = upstream.contains("3000") ? "green" : "blue"
+                    env.NEW_PORT  = upstream.contains("3000") ? "3001" : "3000"
                 }
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Deploy to Inactive Color') {
             steps {
-                sh '''
-                    docker build -t $IMAGE_NAME:latest .
-                '''
+                sh """
+                docker stop app-$NEW_COLOR || true
+                docker rm app-$NEW_COLOR || true
+                docker run -d \
+                  --name app-$NEW_COLOR \
+                  -p $NEW_PORT:3000 \
+                  $IMAGE:latest
+                """
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Health Check') {
             steps {
-                sh '''
-                    docker push $IMAGE_NAME:latest
-                '''
+                sh "curl -f http://localhost:$NEW_PORT"
             }
         }
 
-        stage('Deploy Container (Same EC2)') {
+        stage('Switch Traffic') {
             steps {
-                sh '''
-                    docker stop $CONTAINER_NAME || true
-                    docker rm $CONTAINER_NAME || true
-                    docker run -d -p 3000:3000 --name $CONTAINER_NAME $IMAGE_NAME:latest
-                '''
+                sh """
+                echo "upstream backend { server 127.0.0.1:$NEW_PORT; }" | sudo tee $ACTIVE_COLOR_FILE
+                sudo nginx -t
+                sudo systemctl reload nginx
+                """
             }
         }
     }
 
     post {
-        success {
-            echo '✅ CI/CD Pipeline completed successfully'
-        }
         failure {
-            echo '❌ CI/CD Pipeline failed'
+            echo "❌ Deployment failed — traffic NOT switched"
+        }
+        success {
+            echo "✅ Blue-Green deployment completed successfully"
         }
     }
 }
