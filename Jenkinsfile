@@ -3,68 +3,65 @@ pipeline {
 
     environment {
         IMAGE_NAME = "reddy1753421/jenkins-demo-app"
-        IMAGE_TAG  = "latest"
-        EC2_USER   = "jenkins"
-        EC2_HOST   = "13.60.203.224"
+        CONTAINER_NAME = "backend-app"
     }
 
     stages {
 
         stage('Checkout') {
             steps {
-                checkout scm
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                bat "docker build -t %IMAGE_NAME%:%BUILD_NUMBER% ."
+                git branch: 'main',
+                    url: 'https://github.com/RamiReddy-G/jenkins-demo.git'
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'dockerhub-password', variable: 'DOCKER_PASS')
-                ]) {
-                    bat """
-                        echo %DOCKER_PASS% | docker login -u reddy1753421 --password-stdin
-                    """
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKER_USER',
+                    passwordVariable: 'DOCKER_PASS'
+                )]) {
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
                 }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build -t $IMAGE_NAME:latest .
+                '''
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                bat """
-                    docker push %IMAGE_NAME%:%BUILD_NUMBER%
-                    docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:%IMAGE_TAG%
-                    docker push %IMAGE_NAME%:%IMAGE_TAG%
-                """
+                sh '''
+                    docker push $IMAGE_NAME:latest
+                '''
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy Container (Same EC2)') {
             steps {
-                sshagent(credentials: ['ec2-ssh-key']) {
-                    bat """
-                        ssh -o StrictHostKeyChecking=no %EC2_USER%@%EC2_HOST% ^
-                        "docker stop backend-app || true && \
-                         docker rm backend-app || true && \
-                         docker pull %IMAGE_NAME%:%IMAGE_TAG% && \
-                         docker run -d -p 3000:3000 --name backend-app %IMAGE_NAME%:%IMAGE_TAG%"
-                    """
-                }
+                sh '''
+                    docker stop $CONTAINER_NAME || true
+                    docker rm $CONTAINER_NAME || true
+                    docker run -d -p 3000:3000 --name $CONTAINER_NAME $IMAGE_NAME:latest
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "✅ Deployment successful"
+            echo '✅ CI/CD Pipeline completed successfully'
         }
         failure {
-            echo "❌ Deployment failed"
+            echo '❌ CI/CD Pipeline failed'
         }
     }
 }
