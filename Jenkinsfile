@@ -26,25 +26,26 @@ pipeline {
         }
 
         stage('Detect Active Port') {
-            steps {
-                script {
-                    def activePort = sh(
-                        script: "grep -o '[0-9]\\+' ${NGINX_UPSTREAM}",
-                        returnStdout: true
-                    ).trim()
+    steps {
+        script {
+            def activePort = sh(
+                script: "grep -o ':[0-9]*' ${NGINX_UPSTREAM} | tr -d ':'",
+                returnStdout: true
+            ).trim()
 
-                    if (!activePort) {
-                        activePort = "3000"
-                    }
-
-                    env.ACTIVE_PORT = activePort
-                    env.INACTIVE_PORT = (activePort == "3000") ? "3001" : "3000"
-
-                    echo "ACTIVE_PORT   = ${env.ACTIVE_PORT}"
-                    echo "INACTIVE_PORT = ${env.INACTIVE_PORT}"
-                }
+            if (!activePort) {
+                activePort = "3000"
             }
+
+            env.ACTIVE_PORT = activePort
+            env.INACTIVE_PORT = (activePort == "3000") ? "3001" : "3000"
+
+            echo "ACTIVE_PORT   = ${env.ACTIVE_PORT}"
+            echo "INACTIVE_PORT = ${env.INACTIVE_PORT}"
         }
+    }
+}
+
 
         stage('Deploy to Inactive Port') {
             steps {
