@@ -47,20 +47,17 @@ pipeline {
 }
 
 
-        stage('Deploy to Inactive Port') {
-            steps {
-                sh """
-                echo "Stopping anything running on port ${INACTIVE_PORT} (if exists)..."
-
-                docker ps -q --filter "publish=${INACTIVE_PORT}" | xargs -r docker stop
-                docker ps -aq --filter "publish=${INACTIVE_PORT}" | xargs -r docker rm
-
-                docker run -d \
-                  --name app-${INACTIVE_PORT} \
-                  -p ${INACTIVE_PORT}:3000 \
-                  ${IMAGE}:latest
-                """
-            }
+        stage('Deploy to Inactive Port') { 
+            steps { 
+                sh """ 
+                echo "Removing old container if exists..." 
+                docker rm -f app-${INACTIVE_PORT} || true 
+                docker run -d \ 
+                --name app-${INACTIVE_PORT} \ 
+                -p ${INACTIVE_PORT}:3000 \ 
+                ${IMAGE}:latest 
+                """ 
+            } 
         }
 
         stage('Health Check') {
