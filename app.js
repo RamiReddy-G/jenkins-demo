@@ -1,13 +1,8 @@
-const http = require('http');
-
-const PORT = 3000;
-
+const http = require("http");
 const server = http.createServer((req, res) => {
-  res.end('Hello from Jenkins + Docker this is a zero down time shifting ! this is another change');
-  
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("Hello from Jenkins + Docker 🚀 Blue-Green Deployment Working!");
 });
-
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+server.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
-console.log("the server is updated")
